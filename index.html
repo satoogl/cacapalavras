@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Caça-palavras</title>
+
+<style>
+body {
+  font-family: Arial;
+  text-align: center;
+  background: #fff7fb;
+  margin: 0;
+  padding: 10px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  max-width: 420px;
+  margin: auto;
+  gap: 3px;
+  user-select: none;
+}
+
+.cell {
+  aspect-ratio: 1/1;
+  border: 1px solid #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: white;
+  font-weight: bold;
+  touch-action: none;
+}
+
+.active { background: #ffd6e7; }
+
+.w0 { background: #ff6b6b; color: white; }
+.w1 { background: #4dabf7; color: white; }
+.w2 { background: #51cf66; color: white; }
+.w3 { background: #ffd43b; }
+.w4 { background: #845ef7; color: white; }
+
+#win {
+  display: none;
+  font-size: 22px;
+  color: green;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>💖 Caça-palavras</h2>
+
+<div id="words"></div>
+
+<audio id="music" loop>
+  <source src="musica.mp3" type="audio/mpeg">
+</audio>
+
+<div class="grid" id="grid"></div>
+
+<div id="win">🎉 Você encontrou todas as palavras!</div>
+
+<script>
+
+// ======================
+// PALAVRAS
+// ======================
+let words = [
+  { text: "VANTABLACK", color: "w0" },
+  { text: "SORRISO", color: "w1" },
+  { text: "VOCE", color: "w2" },
+  { text: "BESTA", color: "w3" },
+  { text: "BRAWL", color: "w4" }
+];
+
+// ======================
+const size = 12;
+let grid = Array(size * size).fill(null);
+let wordMap = [];
+
+// SOMENTE HORIZONTAL E VERTICAL
+const dirs = [
+  {x:1,y:0}, // →
+  {x:-1,y:0}, // ←
+  {x:0,y:1}, // ↓
+  {x:0,y:-1} // ↑
+];
+
+// ======================
+function place(wordObj) {
+  let ok = false;
+
+  while (!ok) {
+    let dir = dirs[Math.floor(Math.random()*dirs.length)];
+    let r = Math.floor(Math.random()*size);
+    let c = Math.floor(Math.random()*size);
+
+    let pos = [];
+    let okFit = true;
+
+    for (let i=0;i<wordObj.text.length;i++) {
+      let rr = r + dir.y*i;
+      let cc = c + dir.x*i;
+
+      if (rr<0||cc<0||rr>=size||cc>=size) {
+        okFit=false; break;
+      }
+
+      let idx = rr*size+cc;
+
+      if (grid[idx] && grid[idx] !== wordObj.text[i]) {
+        okFit=false; break;
+      }
+
+      pos.push(idx);
+    }
+
+    if (okFit) {
+      pos.forEach((p,i)=>{
+        grid[p]=wordObj.text[i];
+      });
+
+      wordMap.push({
+        word:wordObj.text,
+        color:wordObj.color,
+        pos
+      });
+
+      ok=true;
+    }
+  }
+}
+
+words.forEach(place);
+
+// preencher letras
+const abc="ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+for (let i=0;i<grid.length;i++){
+  if(!grid[i]) grid[i]=abc[Math.floor(Math.random()*abc.length)];
+}
+
+// ======================
+const gridDiv=document.getElementById("grid");
+
+grid.forEach((l,i)=>{
+  let d=document.createElement("div");
+  d.className="cell";
+  d.textContent=l;
+  d.dataset.i=i;
+  gridDiv.appendChild(d);
+});
+
+// lista
+document.getElementById("words").innerHTML =
+"Palavras: " + words.map(w=>w.text).join(" • ");
+
+// ======================
+let sel=[];
+let down=false;
+
+function add(el){
+  if(!sel.includes(el)){
+    el.classList.add("active");
+    sel.push(el);
+  }
+}
+
+function clear(){
+  document.querySelectorAll(".cell").forEach(c=>c.classList.remove("active"));
+  sel=[];
+}
+
+// mouse
+document.querySelectorAll(".cell").forEach(c=>{
+  c.onmousedown=()=>{down=true;clear();add(c)};
+  c.onmouseenter=()=>{if(down)add(c)};
+});
+
+document.body.onmouseup=check;
+
+// touch
+document.querySelectorAll(".cell").forEach(c=>{
+  c.ontouchstart=(e)=>{down=true;clear();add(c);e.preventDefault();}
+  c.ontouchmove=(e)=>{
+    let t=e.touches[0];
+    let el=document.elementFromPoint(t.clientX,t.clientY);
+    if(el&&el.classList.contains("cell")) add(el);
+    e.preventDefault();
+  }
+});
+
+document.body.ontouchend=check;
+
+// ======================
+function check(){
+  down=false;
+
+  let idx=sel.map(c=>+c.dataset.i);
+
+  for(let w of wordMap){
+    if(JSON.stringify(w.pos)===JSON.stringify(idx)){
+      w.pos.forEach(p=>{
+        let c=document.querySelector(`[data-i="${p}"]`);
+        c.classList.add(w.color);
+      });
+
+      wordMap=wordMap.filter(x=>x.word!==w.word);
+
+      if(wordMap.length===0){
+        document.getElementById("win").style.display="block";
+        document.getElementById("music").play();
+      }
+      break;
+    }
+  }
+
+  setTimeout(clear,100);
+}
+
+// música
+document.body.addEventListener("click",()=>{
+  document.getElementById("music").play();
+});
+
+</script>
+
+</body>
+</html>
